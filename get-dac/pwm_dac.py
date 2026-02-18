@@ -12,8 +12,6 @@ class PWM_DAC:
     def deinit(self):
         GPIO.output(self.gpio_pin,0)
         GPIO.cleanup()
-    def set_number(self,number):
-       GPIO.output(self.gpio_pin,[int(element) for element in bin(number)[2:].zfill(8)])
     def set_voltage(self,voltage):
        if not (0.0<=voltage<=self.dynamic_range):
            print(f"Напряжение выходит за динамический диапазон ЦАП (0.00- {self.dynamic_range:.2f} В)")
