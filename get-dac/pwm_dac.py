@@ -24,7 +24,7 @@ class PWM_DAC:
         GPIO.cleanup()
 if  __name__=="__main__":
     try:
-        dac = PWM_DAC(12,1000,3.183, True)
+        dac = PWM_DAC(12,1000,3.3, True)
 
         while True:
             try:
