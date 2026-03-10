@@ -1,48 +1,56 @@
-import RPi.GPIO as gpio
+import RPi.GPIO as GPIO
 import time
+def dec2bin(value):
+    return [int(element) for element in bin(value)[2:].zfill(8)]
 class R2R_ADC:
-    def __init__(self, dynamic_range, compare_time=0.01, verbose=False):
-        self.dynamic_range=dynamic_range
+    def __init__(self, dynamic_range, compare_time = 0.01, verbose = False):
+        self.dynamic_range = dynamic_range
         self.verbose = verbose
-        self.compare_time=compare_time
+        self.compare_time = compare_time
+        
+        self.bits_gpio = [26, 20, 19, 16, 13, 12, 25, 11]
+        self.comp_gpio = 21
 
-        self.bits_gpio=[26,20,19,16,13,12,25,11]
-        self.comp_gpio=21
-
-        gpio.setmode(gpio.BCM)
-        gpio.setup(self.bits_gpio, gpio.OUT, initial = 0)
-        gpio.setup(self.comp_gpio, gpio.IN)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.bits_gpio, GPIO.OUT, initial = 0)
+        GPIO.setup(self.comp_gpio, GPIO.IN)
     def deinit(self):
-        for pin in self.bits_gpio:
-            gpio.output(pin, gpio.LOW)
-        gpio.cleanup()
-    
-    def number_to_dac(self, number):
-        def set_number(self,number):
-            gpio.output(self.bits_gpio,[int(element) for element in bin(number)[2:].zfill(8)])
-        voltage=(number/255)*self.dynamic_range
-        print(f"Установлено напряжение: {voltage:.3f}")
-    
+        GPIO.output(self.bits_gpio,0)
+        GPIO.cleanup()
+    def number_to_dac(self,number):
+        num=dec2bin(number)
+        GPIO.output(self.bits_gpio,num)
     def sequential_counting_adc(self):
-        for number in range(256):
-            self.number_to_dac(number)
-            time.sleep(self.compare_time)
-
-            if gpio.input(self.comp_gpio)==gpio.HIGH:
-                return number
-            else:
-                return 255
+        max=255
+        for val in range(max+1):
+            self.number_to_dac(val)
+            time.sleep (0.01)
+            comp=GPIO.input(self.comp_gpio)
+            if comp==1:
+               return val
+        return max
     def get_sc_voltage(self):
-        digital_value=self.sequential_counting_adc()
-        voltage = (digital_value/255)*self.dynamic_range
-        return voltage
-    
-if __name__=="__main__":
+        volt=(self.sequential_counting_adc()/256)*self.dynamic_range
+        GPIO.output(self.bits_gpio,self.sequential_counting_adc())
+        return volt
+    def successive_approximation_adc(self):
+        v=0
+        for i in range(7,-1,-1):
+            v|=(1<<i)
+            self.number_to_dac(v)
+            comp=GPIO.input(self.comp_gpio)
+            time.sleep (0.01)
+            if comp==1:
+               v&=~(1<<i)
+        return(v)
+    def get_sar_voltage(self):
+        volt=(self.successive_approximation_adc()/256)*self.dynamic_range
+        GPIO.output(self.bits_gpio,self.successive_approximation_adc())
+        return volt
+if  __name__=="__main__":
     try:
-        DR=2.7
-        adc = R2R_ADC(dynamic_range=DR, compare_time=0.01, verbose=True)
+        dac = R2R_ADC(3.285)
         while True:
-            voltage=adc.get_sc_voltage()
-            print(f"\nТекущее напряжение:{voltage:.3f}В")
+            print(dac.get_sar_voltage())
     finally:
-        adc.deinit()
+        dac.deinit()
