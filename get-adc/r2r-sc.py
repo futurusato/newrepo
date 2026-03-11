@@ -1,4 +1,3 @@
-import RPi.GPIO as gpio
 import r2r_adc as r2r
 import adc_plot as graph
 import time

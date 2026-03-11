@@ -1,5 +1,4 @@
 import smbus
-import RPi.GPIO as GPIO
 import time
 class MCP3021:
     def __init__(self, dynamic_range, verbose = False):
