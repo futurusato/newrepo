@@ -1,56 +1,37 @@
+from matplotlib import pyplot as plt
 import RPi.GPIO as GPIO
 import time
-def dec2bin(value):
-    return [int(element) for element in bin(value)[2:].zfill(8)]
-class R2R_ADC:
-    def __init__(self, dynamic_range, compare_time = 0.01, verbose = False):
-        self.dynamic_range = dynamic_range
-        self.verbose = verbose
-        self.compare_time = compare_time
-        
-        self.bits_gpio = [26, 20, 19, 16, 13, 12, 25, 11]
-        self.comp_gpio = 21
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.bits_gpio, GPIO.OUT, initial = 0)
-        GPIO.setup(self.comp_gpio, GPIO.IN)
-    def deinit(self):
-        GPIO.output(self.bits_gpio,0)
-        GPIO.cleanup()
-    def number_to_dac(self,number):
-        num=dec2bin(number)
-        GPIO.output(self.bits_gpio,num)
-    def sequential_counting_adc(self):
-        max=255
-        for val in range(max+1):
-            self.number_to_dac(val)
-            time.sleep (0.0000001)
-            comp=GPIO.input(self.comp_gpio)
-            if comp==1:
-               return val
-        return max
-    def get_sc_voltage(self):
-        volt=(self.sequential_counting_adc()/256)*self.dynamic_range
-        GPIO.output(self.bits_gpio,self.sequential_counting_adc())
-        return volt
-    def successive_approximation_adc(self):
-        v=0
-        for i in range(7,-1,-1):
-            v|=(1<<i)
-            self.number_to_dac(v)
-            comp=GPIO.input(self.comp_gpio)
-            time.sleep (0.01)
-            if comp==1:
-               v&=~(1<<i)
-        return(v)
-    def get_sar_voltage(self):
-        volt=(self.successive_approximation_adc()/256)*self.dynamic_range
-        GPIO.output(self.bits_gpio,self.successive_approximation_adc())
-        return volt
-if  __name__=="__main__":
-    try:
-        dac = R2R_ADC(3.285)
-        while True:
-            print(dac.get_sar_voltage())
-    finally:
+import r2r_adc as r2r
+def plot_sampling_period_hist(t):
+    sampling_periods=[t[i+1]-t[i] for i in range(len(t)-1)]
+    plt.figure(figsize=(10,6))
+    plt.hist(sampling_periods)
+    plt.title("Гистограмма периодов дискретизации")
+    plt.xlabel("Интервал времени")
+    plt.ylabel("Количество измерений")
+    plt.grid(True)
+    plt.xlim(0,0.06)
+    plt.show()
+def plot_voltage_vs_time(time, voltage, max_voltage):
+    plt.figure(figsize=(10,6))
+    plt.plot(time, voltage)
+    plt.title("График зависимости напряжения от времени")
+    plt.xlabel("Время, с")
+    plt.ylabel("Напряжение, В")
+    plt.grid(True)
+    plt.show()
+voltage_values=[]
+time_values=[]
+duration=3.0
+try:
+    dac = r2r.R2R_ADC(3.285,0.000001)
+    start=time.time()
+    while (time.time()-start)<duration:
+        c=time.time()-start
+        vol=dac.get_sc_voltage()
+        voltage_values.append(vol)
+        time_values.append(c)
+    plot_voltage_vs_time(time_values, voltage_values, 3.285)
+    plot_sampling_period_hist(time_values)
+finally:
         dac.deinit()
